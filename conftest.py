@@ -24,6 +24,10 @@ def driver():
         height=screen_height
     )
     
+    # Set implicit wait from environment variable or default to 10 seconds
+    implicit_wait = int(os.getenv('IMPLICIT_WAIT', '10'))
+    driver.implicitly_wait(implicit_wait)
+    
     yield driver
     driver.quit()
 

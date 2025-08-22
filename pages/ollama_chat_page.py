@@ -23,12 +23,18 @@ class OllamaChatPage(BasePage):
     
     def clear_app_state(self):
         """Clear browser storage and refresh page"""
-        self.driver.execute_script(
-            "localStorage.clear(); sessionStorage.clear(); "
-            "indexedDB.databases().then(dbs => dbs.forEach(db => indexedDB.deleteDatabase(db.name)));"
-        )
+        try:
+            self.driver.execute_script(
+                "try { localStorage.clear(); } catch (e) { console.log('localStorage not available'); }"
+                "try { sessionStorage.clear(); } catch (e) { console.log('sessionStorage not available'); }"
+                "try { indexedDB.databases().then(dbs => dbs.forEach(db => indexedDB.deleteDatabase(db.name))); } catch (e) { console.log('indexedDB not available'); }"
+            )
+        except Exception as e:
+            print(f"Warning: Could not clear browser storage: {e}")
+        
         self.driver.refresh()
-        sleep(2)
+        # Wait for page to be fully loaded
+        self.wait.until(lambda d: d.execute_script('return document.readyState') == 'complete')
         return self
     
     def select_model(self):
@@ -52,36 +58,57 @@ class OllamaChatPage(BasePage):
     
     def submit_prompt(self):
         """Click the submit button to send the prompt"""
-        submit_button = self.driver.find_element(*self.SUBMIT_BUTTON)
+        submit_button = self.wait.until(EC.presence_of_element_located(self.SUBMIT_BUTTON))
         
         # Wait for button to be enabled
         self.wait.until(lambda d: submit_button.is_enabled())
         
         # Scroll to button and click
         self.driver.execute_script(
-            "arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", 
+            "arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});", 
             submit_button
         )
-        sleep(2)
-        submit_button.click()
+        
+        # Wait for button to be clickable after scrolling
+        self.wait.until(EC.element_to_be_clickable(self.SUBMIT_BUTTON)).click()
         return self
     
     def wait_for_response(self, timeout=20):
         """Wait for AI response to appear and return response text"""
+        # Create a longer wait for response timeout
+        response_wait = WebDriverWait(self.driver, timeout)
+        
         # Wait for avatar to appear (indicates response started)
-        avatar_img = self.wait.until(
+        avatar_img = response_wait.until(
             EC.presence_of_element_located(self.AVATAR_IMG)
         )
         
-        # Traverse to get the response container
+        # Wait for the response container to be present
         avatar_container = avatar_img.find_element(By.XPATH, './ancestor::div[1]')
-        response_div = avatar_container.find_element(By.XPATH, 'following-sibling::div[1]')
+        response_div = response_wait.until(
+            EC.presence_of_element_located((By.XPATH, f"//div[contains(@class, 'message')]//p"))
+        )
         
-        # Wait a bit for response to complete
-        sleep(3)
+        # Wait for the response to stabilize (no new text being added)
+        last_text = ""
+        stable_count = 0
+        max_attempts = 10
         
-        # Collect all paragraphs in the response
-        response_paragraphs = response_div.find_elements(By.TAG_NAME, 'p')
+        while stable_count < 3 and max_attempts > 0:
+            response_paragraphs = self.driver.find_elements(By.XPATH, "//div[contains(@class, 'message')]//p")
+            current_text = "\n".join([p.text.strip() for p in response_paragraphs if p.text.strip()])
+            
+            if current_text == last_text:
+                stable_count += 1
+            else:
+                stable_count = 0
+                last_text = current_text
+            
+            max_attempts -= 1
+            sleep(0.5)  # Short sleep to check for changes
+        
+        # Get final response
+        response_paragraphs = self.driver.find_elements(By.XPATH, "//div[contains(@class, 'message')]//p")
         response_texts = [p.text.strip() for p in response_paragraphs if p.text.strip()]
         
         return response_texts
