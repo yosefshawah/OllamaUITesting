@@ -5,7 +5,7 @@ import unittest
 from dotenv import load_dotenv
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from pages.ollama_chat_page import OllamaChatPage
+from pages.page_factory import PageFactory
 from utils.driver_factory import DriverFactory
 
 # Load environment variables
@@ -17,21 +17,34 @@ class TestOllamaChat(unittest.TestCase):
         """Set up test - runs before each test method"""
         browser = os.getenv('BROWSER', 'chrome')
         headless = os.getenv('HEADLESS', 'false').lower() == 'true'
-        screen_width = int(os.getenv('SCREEN_WIDTH', '1920'))
-        screen_height = int(os.getenv('SCREEN_HEIGHT', '1080'))
+        device_name = os.getenv('DEVICE', 'desktop')
         
-        self.driver = DriverFactory.create_driver(
-            browser=browser,
-            headless=headless,
-            width=screen_width,
-            height=screen_height
-        )
+        # Use device-specific driver creation
+        if device_name and device_name != 'custom':
+            self.driver = DriverFactory.create_driver_for_device(
+                browser=browser,
+                headless=headless,
+                device_name=device_name
+            )
+        else:
+            # Fallback to custom dimensions
+            screen_width = int(os.getenv('SCREEN_WIDTH', '1920'))
+            screen_height = int(os.getenv('SCREEN_HEIGHT', '1080'))
+            self.driver = DriverFactory.create_driver(
+                browser=browser,
+                headless=headless,
+                width=screen_width,
+                height=screen_height
+            )
         
         # Set implicit wait
         implicit_wait = int(os.getenv('IMPLICIT_WAIT', '10'))
         self.driver.implicitly_wait(implicit_wait)
         
         self.base_url = os.getenv('OLLAMA_URL', 'http://localhost:3000')
+        self.device = device_name
+        
+        print(f"Running test on {device_name} device")
     
     def tearDown(self):
         """Clean up after each test - runs after each test method"""
@@ -46,8 +59,8 @@ class TestOllamaChat(unittest.TestCase):
         
         test_message = "hello world"
         
-        # Initialize page object and chain the entire flow
-        chat_page = (OllamaChatPage(test_driver)
+        # Initialize device-appropriate page object and chain the entire flow
+        chat_page = (PageFactory.create_chat_page(test_driver)
                     .navigate_to(test_base_url)
                     .clear_app_state()
                     .select_model()
