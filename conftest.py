@@ -1,9 +1,13 @@
-import pytest
 import os
+import pytest
+from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from utils.driver_factory import DriverFactory
+
+# Load environment variables from .env file
+load_dotenv()
 
 @pytest.fixture(scope="function")
 def driver():
