@@ -75,42 +75,49 @@ class OllamaChatPage(BasePage):
         return self
     
     def wait_for_response(self, timeout=20):
-        """Wait for AI response to appear and return response text"""
+        """Wait for AI response to appear next to ollama.png and return response text"""
         # Create a longer wait for response timeout
         response_wait = WebDriverWait(self.driver, timeout)
         
-        # Wait for avatar to appear (indicates response started)
-        avatar_img = response_wait.until(
-            EC.presence_of_element_located(self.AVATAR_IMG)
+        # Wait for ollama.png image to appear (indicates response started)
+        ollama_img = response_wait.until(
+            EC.presence_of_element_located((By.XPATH, "//img[@src='/ollama.png']"))
         )
+        print("Found ollama.png image")
         
-        # Wait for the response container to be present
-        avatar_container = avatar_img.find_element(By.XPATH, './ancestor::div[1]')
-        response_div = response_wait.until(
-            EC.presence_of_element_located((By.XPATH, f"//div[contains(@class, 'message')]//p"))
-        )
+        # Find the container that has the ollama image and look for p tags nearby
+        # Look for p tags that are siblings or descendants of the same container
+        response_xpath = "//img[@src='/ollama.png']/ancestor::div[1]//p | //img[@src='/ollama.png']/following-sibling::*/descendant-or-self::p"
         
-        # Wait for the response to stabilize (no new text being added)
+        # Wait for response text to stabilize (no new text being added)
         last_text = ""
         stable_count = 0
-        max_attempts = 10
+        max_attempts = 20
         
         while stable_count < 3 and max_attempts > 0:
-            response_paragraphs = self.driver.find_elements(By.XPATH, "//div[contains(@class, 'message')]//p")
-            current_text = "\n".join([p.text.strip() for p in response_paragraphs if p.text.strip()])
-            
-            if current_text == last_text:
-                stable_count += 1
-            else:
-                stable_count = 0
-                last_text = current_text
+            try:
+                response_paragraphs = self.driver.find_elements(By.XPATH, response_xpath)
+                current_text = "\n".join([p.text.strip() for p in response_paragraphs if p.text.strip()])
+                
+                if current_text and current_text == last_text:
+                    stable_count += 1
+                elif current_text:
+                    stable_count = 0
+                    last_text = current_text
+                
+            except Exception as e:
+                print(f"Error finding response: {e}")
             
             max_attempts -= 1
             sleep(0.5)  # Short sleep to check for changes
         
         # Get final response
-        response_paragraphs = self.driver.find_elements(By.XPATH, "//div[contains(@class, 'message')]//p")
-        response_texts = [p.text.strip() for p in response_paragraphs if p.text.strip()]
+        try:
+            response_paragraphs = self.driver.find_elements(By.XPATH, response_xpath)
+            response_texts = [p.text.strip() for p in response_paragraphs if p.text.strip()]
+        except Exception as e:
+            print(f"Error getting final response: {e}")
+            response_texts = []
         
         return response_texts
     
