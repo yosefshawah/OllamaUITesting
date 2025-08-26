@@ -7,6 +7,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.device_config import DeviceConfig
 from .ollama_chat_mobile import OllamaChatMobilePage
 from .ollama_chat_desktop import OllamaChatDesktopPage
+from .sidebar_page import SidebarPage
 
 class PageFactory:
     """Factory class to create device-appropriate page objects"""
@@ -31,6 +32,11 @@ class PageFactory:
         except Exception as e:
             print(f"Error detecting device type: {e}, defaulting to desktop")
             return OllamaChatDesktopPage(driver)
+
+    @staticmethod
+    def create_sidebar_page(driver):
+        """Create SidebarPage (single implementation handles mobile differences)."""
+        return SidebarPage(driver)
     
     @staticmethod
     def create_chat_page_for_device(driver, device_name):
@@ -43,6 +49,11 @@ class PageFactory:
             return OllamaChatMobilePage(driver)
         else:
             return OllamaChatDesktopPage(driver)
+
+    @staticmethod
+    def create_sidebar_page_for_device(driver, device_name):
+        """Create SidebarPage for specific device type (API parity)."""
+        return SidebarPage(driver)
     
     @staticmethod
     def get_supported_devices():
