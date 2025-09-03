@@ -17,6 +17,14 @@ class OllamaChatDesktopPage(BasePage):
     PROMPT_INPUT = (By.CSS_SELECTOR, '[placeholder="Enter your prompt here"]')
     SUBMIT_BUTTON = (By.CSS_SELECTOR, 'button[type="submit"]')
     OLLAMA_IMG = (By.XPATH, "//img[@src='/ollama.png']")
+    # Image upload related
+    ADD_IMAGE_BUTTON = (By.XPATH, "//svg[contains(@class,'lucide-image') and contains(@class,'w-5') and contains(@class,'h-5')]/ancestor::button[1]")
+    FILE_INPUT_ANY = (By.CSS_SELECTOR, "input[type='file']")
+    # Name input after adding image (broadened to handle input/textarea variants)
+    CHAT_IMAGE_NAME_INPUT = (
+        By.XPATH,
+        "//*[self::input or self::textarea][contains(@placeholder,'Give name')]"
+    )
     
     # Desktop-specific UI elements
     SIDEBAR = (By.CSS_SELECTOR, '.sidebar, .navigation, .side-panel')
@@ -42,6 +50,42 @@ class OllamaChatDesktopPage(BasePage):
         assert page_title, "Page title is empty - page may not have loaded properly"
         print(f"✅ DESKTOP: Page loaded with title: '{page_title}'")
         
+        return self
+
+    def upload_image_and_submit(self, image_path: str, name_text: str):
+        """Upload an image via the add-image control, set name, and submit."""
+        # Prefer existing file input first
+        file_inputs = self.driver.find_elements(*self.FILE_INPUT_ANY)
+        if not file_inputs:
+            # Click add image button to reveal input
+            assert self.is_element_present(self.ADD_IMAGE_BUTTON), "Add image button not found"
+            add_btn = self.wait.until(EC.presence_of_element_located(self.ADD_IMAGE_BUTTON))
+            try:
+                self.wait.until(EC.element_to_be_clickable(self.ADD_IMAGE_BUTTON))
+                self.driver.execute_script(
+                    "arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});",
+                    add_btn,
+                )
+                add_btn.click()
+            except Exception:
+                self.driver.execute_script("arguments[0].click();", add_btn)
+            file_inputs = self.driver.find_elements(*self.FILE_INPUT_ANY)
+
+        assert len(file_inputs) > 0, "No file input found for image upload"
+        file_inputs[0].send_keys(image_path)
+
+        # Enter name (wait for animated field to appear)
+        try:
+            name_field = self.wait.until(EC.presence_of_element_located(self.CHAT_IMAGE_NAME_INPUT))
+        except Exception:
+            assert False, "Name input for image/chat not found"
+        name_field.click()
+        name_field.clear()
+        name_field.send_keys(name_text)
+
+        # Submit
+        assert self.is_element_present(self.SUBMIT_BUTTON), "Submit button not found"
+        self.click_element(self.SUBMIT_BUTTON)
         return self
     
     def clear_app_state(self):
