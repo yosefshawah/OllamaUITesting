@@ -15,12 +15,13 @@ class SidebarPage(BasePage):
     """Single sidebar page that handles minor mobile/desktop differences internally."""
 
     # Common locators (kept broad to be resilient)
-    HAMBURGER_BUTTON = (By.CSS_SELECTOR, "[aria-label='Menu'], .hamburger, .mobile-menu-btn, button[aria-label*='Menu']")
+    HAMBURGER_BUTTON = (By.CSS_SELECTOR, "button[aria-haspopup='dialog'][data-state]")
     SIDEBAR = (By.CSS_SELECTOR, ".sidebar, .side-panel, .drawer, .sheet, [data-testid='sidebar']")
     NEW_CHAT_BUTTON = (By.CSS_SELECTOR, "button:has(svg[aria-label='New']), .new-chat, [aria-label='New chat']")
     SETTINGS_BUTTON = (By.CSS_SELECTOR, ".settings, [aria-label='Settings'], button[title*='Settings']")
     COLLAPSE_TOGGLE = (By.CSS_SELECTOR, "[aria-label*='Collapse'], [aria-label*='Expand']")
     CONVERSATION_ITEM_TITLES = (By.CSS_SELECTOR, ".conversation-item, .chat-item, [data-testid='conversation-item']")
+    CLOSE_BUTTON = (By.XPATH, "//button[.//span[contains(@class,'sr-only') and normalize-space()='Close']]")
 
     def __init__(self, driver):
         super().__init__(driver)
@@ -92,5 +93,18 @@ class SidebarPage(BasePage):
             except Exception:
                 continue
         assert False, f"Conversation containing '{title_substring}' not found"
+
+    def close_sidebar(self, wait_until_hidden: bool = True, timeout: int = 10):
+        """Click the sidebar close button (if present) and optionally wait until it hides."""
+        if self.is_element_present(self.CLOSE_BUTTON):
+            self.click_element(self.CLOSE_BUTTON)
+            if wait_until_hidden:
+                try:
+                    self.wait.until(EC.invisibility_of_element_located(self.SIDEBAR))
+                except TimeoutException:
+                    print("Sidebar did not hide after clicking close")
+        else:
+            print("Close button not present")
+        return self
 
 
