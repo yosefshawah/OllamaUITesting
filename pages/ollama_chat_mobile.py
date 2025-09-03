@@ -18,6 +18,14 @@ class OllamaChatMobilePage(BasePage):
     PROMPT_INPUT = (By.CSS_SELECTOR, '[placeholder="Enter your prompt here"], textarea, input[type="text"], .message-input')
     SUBMIT_BUTTON = (By.CSS_SELECTOR, 'button[type="submit"], .send-button, [aria-label*="send"], [aria-label*="Send"]')
     OLLAMA_IMG = (By.XPATH, "//img[@src='/ollama.png']")
+    # Image upload related
+    ADD_IMAGE_BUTTON = (By.XPATH, "//svg[contains(@class,'lucide-image') and contains(@class,'w-5') and contains(@class,'h-5')]/ancestor::button[1]")
+    FILE_INPUT_ANY = (By.CSS_SELECTOR, "input[type='file']")
+    # Name input after adding image (broadened to handle input/textarea variants)
+    CHAT_IMAGE_NAME_INPUT = (
+        By.XPATH,
+        "//*[self::input or self::textarea][contains(@placeholder,'Give name')]"
+    )
     
     # Mobile-specific UI elements
     CHAT_CONTAINER = (By.CSS_SELECTOR, '.chat-container, .messages, .conversation')
@@ -72,6 +80,50 @@ class OllamaChatMobilePage(BasePage):
         assert current_url, "Current URL is empty after refresh"
         print(f"✅ MOBILE: Page refreshed successfully - URL: {current_url}")
         
+        return self
+
+    def upload_image_and_submit(self, image_path: str, name_text: str):
+        """Upload an image via the add-image control, set name, and submit."""
+        # Ensure app is ready
+        try:
+            self.wait.until(lambda d: d.execute_script('return document.readyState') == 'complete')
+        except Exception:
+            pass
+
+        # Prefer sending keys directly to file inputs if already present
+        file_inputs = self.driver.find_elements(*self.FILE_INPUT_ANY)
+        if not file_inputs:
+            # Click add image control to reveal file input
+            try:
+                add_btn = self.wait.until(EC.presence_of_element_located(self.ADD_IMAGE_BUTTON))
+                try:
+                    self.wait.until(EC.element_to_be_clickable(self.ADD_IMAGE_BUTTON))
+                    self.driver.execute_script(
+                        "arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});",
+                        add_btn,
+                    )
+                    add_btn.click()
+                except Exception:
+                    self.driver.execute_script("arguments[0].click();", add_btn)
+            except Exception:
+                assert False, "Add image trigger not found (mobile)"
+            file_inputs = self.driver.find_elements(*self.FILE_INPUT_ANY)
+
+        assert len(file_inputs) > 0, "No file input available for image upload (mobile)"
+        file_inputs[0].send_keys(image_path)
+
+        # Enter provided name (may require focus due to virtual keyboard)
+        try:
+            name_field = self.wait.until(EC.presence_of_element_located(self.CHAT_IMAGE_NAME_INPUT))
+        except Exception:
+            assert False, "Name input for image/chat not found (mobile)"
+        name_field.click()
+        name_field.clear()
+        name_field.send_keys(name_text)
+
+        # Submit
+        assert self.is_element_present(self.SUBMIT_BUTTON), "Submit button not found (mobile)"
+        self.click_element(self.SUBMIT_BUTTON)
         return self
     
     def open_model_selection(self):

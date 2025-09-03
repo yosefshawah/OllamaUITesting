@@ -8,6 +8,7 @@ from utils.device_config import DeviceConfig
 from .ollama_chat_mobile import OllamaChatMobilePage
 from .ollama_chat_desktop import OllamaChatDesktopPage
 from .sidebar_page import SidebarPage
+from .settings_page import SettingsPage
 
 class PageFactory:
     """Factory class to create device-appropriate page objects"""
@@ -54,6 +55,11 @@ class PageFactory:
     def create_sidebar_page_for_device(driver, device_name):
         """Create SidebarPage for specific device type (API parity)."""
         return SidebarPage(driver)
+
+    @staticmethod
+    def create_settings_page(driver):
+        """Return a SettingsPage instance."""
+        return SettingsPage(driver)
     
     @staticmethod
     def get_supported_devices():
