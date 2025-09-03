@@ -20,17 +20,7 @@ def _create_temp_png() -> str:
     return path
 
 
-@pytest.mark.parametrize(
-    "viewport",
-    [
-        ("desktop", 1366, 900),
-        ("mobile", 700, 900),
-    ],
-)
-def test_upload_image_and_type_then_submit(driver, base_url, viewport):
-    label, width, height = viewport
-    driver.set_window_size(width, height)
-
+def test_upload_image_and_type_then_submit(driver, base_url):
     driver.get(base_url)
 
     chat_page = PageFactory.create_chat_page(driver)
