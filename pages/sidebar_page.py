@@ -23,6 +23,7 @@ class SidebarPage(BasePage):
     CONVERSATION_ITEM_TITLES = (By.CSS_SELECTOR, ".conversation-item, .chat-item, [data-testid='conversation-item']")
     CLOSE_BUTTON = (By.XPATH, "//button[.//span[contains(@class,'sr-only') and normalize-space()='Close']]")
     # New reliable test IDs from app
+    USER_MENU_BUTTON_STRICT = (By.XPATH, "//button[@data-testid='user-menu-button']")
     USER_MENU_BUTTON = (
         By.XPATH,
         "//body//*[contains(@class,'antialiased') and contains(@class,'tracking-tight') and contains(@class,'__className_')]//button[@aria-haspopup='menu']",
@@ -142,11 +143,13 @@ class SidebarPage(BasePage):
     def open_user_menu(self):
         """Open the user menu using the reliable test id selector."""
         self.open_sidebar_if_needed()
-        assert self.is_element_present(self.USER_MENU_BUTTON), "User menu button not found"
+        # Prefer strict data-testid selector if present
+        locator = self.USER_MENU_BUTTON_STRICT if self.is_element_present(self.USER_MENU_BUTTON_STRICT) else self.USER_MENU_BUTTON
+        assert self.is_element_present(locator), "User menu button not found"
         # Robust click similar to hamburger
-        element = self.wait.until(EC.presence_of_element_located(self.USER_MENU_BUTTON))
+        element = self.wait.until(EC.presence_of_element_located(locator))
         try:
-            self.wait.until(EC.element_to_be_clickable(self.USER_MENU_BUTTON))
+            self.wait.until(EC.element_to_be_clickable(locator))
             self.driver.execute_script(
                 "arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});",
                 element,
